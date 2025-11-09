@@ -2,6 +2,9 @@
 vm/*.img
 vm/*.qcow2
 
+vm/*.iso
+kernel-build/linux-6.17.7.tar.xz
+
 # Ignore temporary files
 *.swp
 *.log
