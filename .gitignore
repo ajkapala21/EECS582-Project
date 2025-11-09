@@ -1,0 +1,28 @@
+# Ignore VM images
+vm/*.img
+vm/*.qcow2
+
+# Ignore temporary files
+*.swp
+*.log
+*.tmp
+
+# Ignore build artifacts only
+kernel-build/linux-6.17.7/arch/*/boot/
+kernel-build/linux-6.17.7/Module.symvers
+kernel-build/linux-6.17.7/.config
+kernel-build/linux-6.17.7/Makefile.old
+kernel-build/linux-6.17.7/.tmp_versions/
+kernel-build/linux-6.17.7/*.o
+kernel-build/linux-6.17.7/**/*.o
+kernel-build/linux-6.17.7/*.ko
+kernel-build/linux-6.17.7/**/*.ko
+kernel-build/linux-6.17.7/Documentation/
+kernel-build/linux-6.17.7/include/generated/
+
+# Ignore compiled kernel images
+kernel-build/linux-6.17.7/arch/x86/boot/bzImage
+kernel-build/linux-6.17.7/vmlinux
+
+# Ignore modules install dir (if installed)
+lib/modules/
