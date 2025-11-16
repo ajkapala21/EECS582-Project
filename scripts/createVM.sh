@@ -24,7 +24,7 @@ if [ -f "$IMG" ]; then
 fi
 
 # 1. Create disk image
-echo "[+] Creating 10G QCOW2 disk image..."
+echo "[+] Creating 20G QCOW2 disk image..."
 qemu-img create -f qcow2 "$IMG" 20G
 
 # 2. Download Debian ISO

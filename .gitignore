@@ -20,7 +20,6 @@ kernel-build/linux-6.17.7/*.o
 kernel-build/linux-6.17.7/**/*.o
 kernel-build/linux-6.17.7/*.ko
 kernel-build/linux-6.17.7/**/*.ko
-kernel-build/linux-6.17.7/Documentation/
 kernel-build/linux-6.17.7/include/generated/
 
 # Ignore compiled kernel images

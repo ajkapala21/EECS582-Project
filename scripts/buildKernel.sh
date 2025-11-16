@@ -36,14 +36,24 @@ cd "$SRC_DIR"
 echo "[+] Creating default kernel config..."
 make defconfig
 
-# 2️⃣ Patch .config to include drivers required for root filesystem
-echo "[+] Patching .config for disk and filesystem support..."
-sed -i 's/^# CONFIG_SCSI is not set/CONFIG_SCSI=y/' .config
-sed -i 's/^# CONFIG_BLK_DEV_SD is not set/CONFIG_BLK_DEV_SD=y/' .config
-sed -i 's/^# CONFIG_ATA is not set/CONFIG_ATA=y/' .config
-sed -i 's/^# CONFIG_ATA_SATA is not set/CONFIG_ATA_SATA=y/' .config
-sed -i 's/^# CONFIG_SATA_AHCI is not set/CONFIG_SATA_AHCI=y/' .config
-sed -i 's/^# CONFIG_EXT4_FS is not set/CONFIG_EXT4_FS=y/' .config
+echo "[+] Enabling BPF, BTF, and sched_ext..."
+#cat ../../scripts/bpf.config >> .config
+scripts/config --disable CONFIG_DEBUG_INFO_NONE
+scripts/config --enable DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
+
+
+scripts/config --enable CONFIG_BPF
+scripts/config --enable CONFIG_BPF_SYSCALL
+scripts/config --enable CONFIG_BPF_JIT
+scripts/config --enable CONFIG_DEBUG_INFO_BTF
+scripts/config --enable CONFIG_SCHED_CLASS_EXT
+scripts/config --enable CONFIG_BPF_JIT_ALWAYS_ON
+scripts/config --enable CONFIG_BPF_JIT_DEFAULT_ON
+scripts/config --enable CONFIG_PAHOLE_HAS_SPLIT_BTF
+scripts/config --enable CONFIG_PAHOLE_HAS_BTF_TAG
+
+
+
 
 # 3️⃣ Update config for any new dependencies automatically
 echo "[+] Resolving config dependencies..."
