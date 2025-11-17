@@ -52,6 +52,7 @@ scripts/config --enable CONFIG_BPF_JIT_DEFAULT_ON
 scripts/config --enable CONFIG_PAHOLE_HAS_SPLIT_BTF
 scripts/config --enable CONFIG_PAHOLE_HAS_BTF_TAG
 
+scripts/config --set-str CONFIG_LOCALVERSION "-project"
 
 
 
