@@ -64,8 +64,12 @@ echo "[+] Building kernel (using $(nproc) threads)..."
 make -j"$(nproc)"
 
 # 5️⃣ Install modules
-#echo "[+] Installing kernel modules..."
-#make modules_install
+echo "[+] Installing kernel modules..."
+sudo make modules_install
+
+# 6️⃣ Install kernel
+echo "[+] Installing kernel..."
+sudo make install
 
 echo "[+] Kernel build complete!"
 echo "    → bzImage: ${SRC_DIR}/arch/x86/boot/bzImage"
