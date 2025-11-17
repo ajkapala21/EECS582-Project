@@ -28,4 +28,6 @@ qemu-system-x86_64 \
     -display gtk \
     -nic user,model=virtio-net-pci \
     -vga virtio \
+    -device qemu-xhci \
+    -device usb-tablet \
     -name "Ubuntu2510"
