@@ -6535,6 +6535,12 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 	memcpy(events, &e_sys, events__sz);
 }
 
+__bpf_kfunc u64 scx_bpf_hello_world()
+{
+	pr_info("Hellow world");
+	return 5;
+}
+
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_any)
@@ -6563,6 +6569,7 @@ BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
 #endif
 BTF_ID_FLAGS(func, scx_bpf_now)
 BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_hello_world)
 BTF_KFUNCS_END(scx_kfunc_ids_any)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_any = {
