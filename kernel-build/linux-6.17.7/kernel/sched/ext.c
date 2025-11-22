@@ -6535,9 +6535,9 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 	memcpy(events, &e_sys, events__sz);
 }
 
-__bpf_kfunc u64 scx_bpf_hello_world()
+__bpf_kfunc u64 scx_bpf_hello_world(void)
 {
-	pr_info("Hellow world");
+	pr_info("Hello world\n");
 	return 5;
 }
 
