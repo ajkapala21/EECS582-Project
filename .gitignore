@@ -12,6 +12,7 @@ kernel-build/linux-6.17.7.tar.xz
 
 # Ignore build artifacts only
 kernel-build/linux-6.17.7/Module.symvers
+kernel-build/linux-6.17.7/.config
 kernel-build/linux-6.17.7/Makefile.old
 kernel-build/linux-6.17.7/.tmp_versions/
 kernel-build/linux-6.17.7/*.o
