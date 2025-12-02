@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+//* SPDX-License-Identifier: GPL-2.0 */
 /*
  * BPF extensible scheduler class: Documentation/scheduler/sched-ext.rst
  *
@@ -646,6 +646,7 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
 	__this_cpu_add((sch)->pcpu->event_stats.name, (cnt));			\
 	trace_sched_ext_event(#name, cnt);					\
 } while(0)
+
 
 /**
  * scx_agg_event - Aggregate an event counter 'kind' from 'src_e' to 'dst_e'
@@ -4787,7 +4788,10 @@ err_disable:
 #include <linux/bpf_verifier.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
-
+#include <linux/vmalloc.h>
+#include <linux/rcupdate.h>
+#include <linux/ktime.h>
+#include <linux/string.h>
 static const struct btf_type *task_struct_type;
 
 static bool bpf_scx_is_valid_access(int off, int size,
@@ -6540,6 +6544,110 @@ __bpf_kfunc u64 scx_bpf_hello_world(void)
 	pr_info("Hello world\n");
 	return 5;
 }
+/**
+scz_bpf_map_scan_timeout - scan a bpf map and evict stale entries
+map - input bpf map to scan
+timeout_ns - max time to spend scanning(nano seconds)
+max_age_ns - entries older than this are considered stale
+evicted - output paragermr for number of entries evicted
+
+this  helper iteratees over map entries in kernel space,
+ checking a time budget on each iteartion
+
+helper assumers map values of type struct task_info
+seen in CFS-Like/bfs/cfs-like.bpf.c
+
+offset 0-7: vruntime
+offset 8-15: weight
+offset 16-23 last_start
+
+returens 0 on succcess, -ETIMEOUT if budget exceeded, negative on error
+**/
+
+__bpf_kfunc int scx_bpf_map_scan_timeout(struct bpf_map *map, u64 timeout_ns, u64 max_age_ns, u32 *evicted)
+{
+	ktime_t start;
+	u32 count = 0;
+	void *key = NULL, *next_key;
+	void *value;
+	u64 now;
+	u64 *last_start_ptr;
+	int ret;
+	
+	if (!map || !evicted) {
+		return -EINVAL;
+	}
+
+	start = ktime_get_ns();
+	now = start;
+	*evicted = 0;
+
+	/* allocate key buffers */
+	key = kvmalloc(map->key_size, GFP_ATOMIC);
+	if (!key) {
+		return -ENOMEM;
+	}
+
+	next_key = kvmalloc(map->key_size, GFP_ATOMIC);
+	if (!next_key) {
+		kvfree(key);
+		return -ENOMEM;
+	}
+	/* this is the regular map case, happens morst often not rare like before*/
+	rcu_read_lock();
+/*get first key*/
+	ret = map->ops->map_get_next_key(map, NULL, key);
+	if (ret != 0) {
+		rcu_read_unlock();
+		kvfree(key);
+		kvfree(next_key);
+		return (ret == -ENOENT) ? 0 : ret;
+	}
+
+	/* iterate over map entries*/
+	do {
+		if (ktime_get_ns() - start > timeout_ns) {
+			*evicted = count;
+			rcu_read_unlock();
+			kvfree(key);
+			kvfree(next_key);
+			return -ETIMEDOUT;
+		}
+		/*lookup val*/
+		value = map->ops->map_lookup_elem(map, key);
+		if (!value) {
+			/*entry was delted , skip*/
+			goto next;
+		}
+		/*acccess last_start at offset 16*/
+		last_start_ptr = (u64 *)((char *)value + 16);
+		if (now - *last_start_ptr > max_age_ns) {
+			/*entry slae, evict*/
+			rcu_read_unlock();
+			ret = map->ops->map_delete_elem(map, key);
+			rcu_read_lock();
+			if(ret == 0) {
+				count++;
+			}
+		}
+		
+next:
+		/*get next key*/
+		memcpy(next_key, key, map->key_size);
+		ret = map->ops->map_get_next_key(map, key, next_key);
+		if (ret != 0) {
+			break;
+		}
+ 		memcpy(key, next_key, map->key_size);
+	} while (1);
+
+	rcu_read_unlock();
+	kvfree(key);
+	kvfree(next_key);
+	*evicted = count;
+	return 0;
+
+}
 
 __bpf_kfunc_end_defs();
 
@@ -6570,6 +6678,7 @@ BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
 BTF_ID_FLAGS(func, scx_bpf_now)
 BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_hello_world)
+BTF_ID_FLAGS(func, scx_bpf_map_scan_timeout)
 BTF_KFUNCS_END(scx_kfunc_ids_any)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_any = {
