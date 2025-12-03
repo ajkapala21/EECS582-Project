@@ -6541,7 +6541,7 @@ __bpf_kfunc u64 scx_bpf_hello_world(void)
 	return 5;
 }
 
-struct task_ctx {
+struct rand_task_ctx {
     u32 pid;
     u64 vruntime;
     bool valid;
@@ -6565,7 +6565,7 @@ __bpf_kfunc void scx_bpf_random_enqueue(struct bpf_map *task_map, struct bpf_map
 		return;
 	}
 
-    struct task_ctx *ti = task_map->ops->map_lookup_elem(task_map, map_size);
+    struct rand_task_ctx *ti = task_map->ops->map_lookup_elem(task_map, map_size);
     if (!ti) {
 		return;
 	}
@@ -6596,7 +6596,7 @@ __bpf_kfunc int scx_bpf_random_sample(struct bpf_map *task_map, struct bpf_map *
 
 		u32 key = r % *map_size;
 
-		struct task_ctx *ti = task_map->ops->map_lookup_elem(task_map, &key);
+		struct rand_task_ctx *ti = task_map->ops->map_lookup_elem(task_map, &key);
 		if (!ti || !ti->valid){
 			continue;
 		}
@@ -6614,13 +6614,13 @@ __bpf_kfunc int scx_bpf_random_sample(struct bpf_map *task_map, struct bpf_map *
 	}
 
 	if(*map_size > 1){
-		struct task_ctx *ti_dis = task_map->ops->map_lookup_elem(task_map, &best_key);
+		struct rand_task_ctx *ti_dis = task_map->ops->map_lookup_elem(task_map, &best_key);
 		if (!ti_dis || !ti_dis->valid) {
 			spin_unlock(&random_lock);
 			return -1; 
 		}
 		u32 key = *map_size - 1;
-		struct task_ctx *ti_last = task_map->ops->map_lookup_elem(task_map, &key);
+		struct rand_task_ctx *ti_last = task_map->ops->map_lookup_elem(task_map, &key);
 		if (!ti_last || !ti_dis->valid){
 			spin_unlock(&random_lock);
 			return -1;
@@ -6632,7 +6632,7 @@ __bpf_kfunc int scx_bpf_random_sample(struct bpf_map *task_map, struct bpf_map *
 		ti_dis->pid = ti_last->pid;
 		ti_dis->vruntime = ti_last->vruntime;
 	} else{
-		struct task_ctx *ti_dis = task_map->ops->map_lookup_elem(task_map, &best_key);
+		struct rand_task_ctx *ti_dis = task_map->ops->map_lookup_elem(task_map, &best_key);
 		if (!ti_dis || !ti_dis->valid) {
 			spin_unlock(&random_lock);
 			return -1; 
