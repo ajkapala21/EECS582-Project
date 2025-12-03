@@ -6541,6 +6541,110 @@ __bpf_kfunc u64 scx_bpf_hello_world(void)
 	return 5;
 }
 
+struct task_ctx {
+    u32 pid;
+    u64 vruntime;
+    bool valid;
+};
+
+static DEFINE_SPINLOCK(random_lock);
+
+__bpf_kfunc void scx_bpf_random_enqueue(struct bpf_map *task_map, struct bpf_map *map_info, struct task_struct *p, u64 *vtime_now){
+	spin_lock(&random_lock);
+
+	u64 vtime = p->scx.dsq_vtime;
+	u32 pid = p->pid;
+	
+	if (vtime < (*vtime_now) - SCX_SLICE_DFL){
+        vtime = (*vtime_now) - SCX_SLICE_DFL;
+	}
+
+	u64 *map_size = map_info->ops->map_lookup_elem(map_info, 0);
+	if (!map_size){
+		pr_info("Map size not found");
+		return;
+	}
+
+    struct task_ctx *ti = task_map->ops->map_lookup_elem(task_map, map_size);
+    if (!ti) {
+		return;
+	}
+    ti->vruntime += vtime;
+    ti->pid = pid;
+    ti->valid = true;
+	(*map_size)++;
+
+	spin_unlock(&random_lock);
+}
+
+__bpf_kfunc int scx_bpf_random_sample(struct bpf_map *task_map, struct bpf_map *map_info, u64 time_bound){
+	spin_lock(&random_lock);
+	u64 best_vtime = (u64)-1;
+	u64 best_key = -1;
+	u32 pid;
+
+	u64 *map_size = map_info->ops->map_lookup_elem(map_info, 0);
+	if (!map_size){
+		pr_info("Map size not found");
+		return -1;
+	}
+
+	u64 start = ktime_get_ns();
+	u64 count = 0;
+    while(ktime_get_ns() - start < time_bound && count < *map_size){
+		u32 r = get_random_u32();
+
+		u32 key = r % *map_size;
+
+		struct task_ctx *ti = task_map->ops->map_lookup_elem(task_map, &key);
+		if (!ti || !ti->valid){
+			continue;
+		}
+
+		if (ti->vruntime < best_vtime) {
+			best_vtime = ti->vruntime;
+			best_key = key;
+		}
+		count++;
+	}
+
+	if(best_key == -1){
+		spin_unlock(&random_lock);
+		return -1;
+	}
+
+	if(*map_size > 1){
+		struct task_ctx *ti_dis = task_map->ops->map_lookup_elem(task_map, &best_key);
+		if (!ti_dis || !ti_dis->valid) {
+			spin_unlock(&random_lock);
+			return -1; 
+		}
+		u32 key = *map_size - 1;
+		struct task_ctx *ti_last = task_map->ops->map_lookup_elem(task_map, &key);
+		if (!ti_last || !ti_dis->valid){
+			spin_unlock(&random_lock);
+			return -1;
+		}
+
+		(*map_size)--;
+		ti_last->valid = false;
+		pid = ti_dis->pid;
+		ti_dis->pid = ti_last->pid;
+		ti_dis->vruntime = ti_last->vruntime;
+	} else{
+		struct task_ctx *ti_dis = task_map->ops->map_lookup_elem(task_map, &best_key);
+		if (!ti_dis || !ti_dis->valid) {
+			spin_unlock(&random_lock);
+			return -1; 
+		}
+		(*map_size)--;
+		ti_dis->valid = false;
+		pid = ti_dis->pid;
+	}
+	spin_unlock(&random_lock);
+	return pid;
+}
+
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_any)
@@ -6570,6 +6674,8 @@ BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
 BTF_ID_FLAGS(func, scx_bpf_now)
 BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_hello_world)
+BTF_ID_FLAGS(func, scx_bpf_random_sample)
+BTF_ID_FLAGS(func, scx_bpf_random_enqueue)
 BTF_KFUNCS_END(scx_kfunc_ids_any)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_any = {
