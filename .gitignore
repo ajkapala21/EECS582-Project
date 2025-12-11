@@ -27,3 +27,4 @@ kernel-build/linux-6.17.7/vmlinux
 
 # Ignore modules install dir (if installed)
 lib/modules/
+.DS_Store
